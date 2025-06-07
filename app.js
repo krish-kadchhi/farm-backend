@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const port = 8080;
+const port = 5000;
 const mongoose = require("mongoose");
 const Item = require("./models/item.js");
 const Cart = require("./models/cart.js");
