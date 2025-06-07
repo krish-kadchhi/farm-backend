@@ -8,22 +8,21 @@ const User = require("./models/user.js");
 const Order = require("./models/order.js");
 const ejsMate = require("ejs-mate");
 const path = require("path");
-const { render, cookie } = require("express/lib/response.js");
 const cors = require("cors");
-const bodyparser = require("body-parser");
-const { name } = require("ejs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const dotenv = require("dotenv");
+
 dotenv.config();
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // Or an array of allowed origins
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "UPDATE"], // This allows cookies to be sent with requests.
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   })
 );
 
@@ -31,23 +30,27 @@ app.use(cookieParser());
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.engine("ejs", ejsMate);
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(bodyparser.json());
 app.use(morgan("dev"));
-app.use(bodyparser.urlencoded({ extended: true }));
-//database url
-const MONGO_URL = process.env.MONGODB_URI;
+app.use(express.static("public"));
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "public/images");
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    const uniqueName = `${uuidv4()}-${file.originalname}`;
+    cb(null, uniqueName);
   },
 });
 
 const upload = multer({ storage: storage });
+
+async function main() {
+  await mongoose.connect(process.env.MONGODB_URI);
+}
+
 main()
   .then(() => {
     console.log("connected to DB");
@@ -56,11 +59,9 @@ main()
     console.log(err);
   });
 
-async function main() {
-  await mongoose.connect(MONGO_URL);
-}
-
-app.use(express.static("public")); // Serve static files
+app.get("/", (req, res) => {
+  res.render("home"); // Ensure home.ejs exists in views
+});
 
 const authRoutes = require("./routes/authRoutes");
 const itemRoutes = require("./routes/itemRoutes");
@@ -74,8 +75,13 @@ app.use("/cart", cartRoutes);
 app.use("/payment", paymentRoutes);
 app.use("/orders", orderRoutes);
 
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: "Something went wrong!" });
+});
+
 app.listen(port, () => {
-  console.log(`port is listing in ${port}`);
+  console.log(`port is listening on ${port}`);
 });
 
 module.exports = app;
